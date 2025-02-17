@@ -15,8 +15,10 @@
 #include "distance_matrix.h"
 #include "set_cover.h"
 
+#define PARALLEL 1
+
 int main(int argc, char* argv[]) {
-    std::string test = "sift_1K";
+    std::string test = "sift_10K";
     if (argc > 1) {
         test = argv[1];
     }
@@ -39,7 +41,17 @@ int main(int argc, char* argv[]) {
     parlay::internal::timer timer;
     timer.start();
     SetCoverAdjlists<value_t> set_cover(points);
-    auto adjlists = set_cover.adjlists_greedy();
+
+    #if PARALLEL
+        auto adjlists = set_cover.adjlists_greedy();
+    #else
+        std::vector<std::vector<index_t>> adjlists;
+        for (size_t i = 0; i < points.size(); i++) {
+            std::cout << "Computing adjacency list for point " << i << std::endl;
+            adjlists.push_back(set_cover.adjlist_greedy(i));
+        }
+    #endif
+
     std::cout << "Adjacency lists computed in " << timer.next_time() << " seconds" << std::endl;
 
     // Output basic statistics
@@ -58,6 +70,7 @@ int main(int argc, char* argv[]) {
             graph[i].append_neighbor(adjlists[i][j]);
         }
     });
+    graph.save(("/ssd1/richard/navgraphs/" + test + ".graph").data());
 
     // Test QPS/recall
     std::cout << "Testing recall" << std::endl;

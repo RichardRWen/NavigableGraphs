@@ -15,7 +15,12 @@
 #include "distance_matrix.h"
 #include "set_cover.h"
 
-int main() {
+int main(int argc, char* argv[]) {
+    std::string test = "sift_1K";
+    if (argc > 1) {
+        test = argv[1];
+    }
+
     using index_t = uint32_t;
     using value_t = float;
     using Point_t = parlayANN::Euclidian_Point<value_t>;

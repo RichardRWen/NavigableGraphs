@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <utility>
+#include <mutex>
 
 #include <parlay/sequence.h>
 #include <parlay/parallel.h>
@@ -33,20 +34,25 @@ public:
         }, 1);
     }
 
-    std::vector<uint32_t> adjlist_greedy(uint32_t p) {
+    // std::mutex cout_lock;
+    std::vector<uint32_t> adjlist_greedy(uint32_t v) {
+        // cout_lock.lock();
+        // std::cout << v << std::endl;
+        // cout_lock.unlock();
+
         std::vector<uint32_t> adjlist;
         std::vector<bool> covered(points.size(), false);
         size_t uncovered_count = points.size();
 
-        // Compute, for each point q, the set of points r it helps cover
-        // To do this, search for the p in the sorted list of distances from q
-        // All points before p are covered by q
+        // Compute, for each point v, the set of points u it helps cover
+        // To do this, search for v in the sorted list of distances from u
+        // All points before v are covered by u
         std::vector<std::pair<uint32_t, uint32_t>> sets; // First element is size, second is index of first uncovered point in sorted_dists
         sets.reserve(points.size());
         for (int i = 0; i < points.size(); i++) {
             val_t *distances = dist_mat.distances.begin() + i * points.size();
             uint32_t *indices = sorted_dists.indices.begin() + i * points.size();
-            uint32_t set_boundary = std::upper_bound(indices, indices + points.size(), p, [&](uint32_t a, uint32_t b) {
+            uint32_t set_boundary = std::upper_bound(indices, indices + points.size(), v, [&](uint32_t a, uint32_t b) {
                 return distances[a] < distances[b];
             }) - indices;
             sets.push_back({set_boundary, set_boundary});
@@ -83,10 +89,13 @@ public:
     }
 
     parlay::sequence<std::vector<uint32_t>> adjlists_greedy() {
-        auto adjlists = parlay::sequence<std::vector<uint32_t>>::uninitialized(points.size());
+        /*auto adjlists = parlay::sequence<std::vector<uint32_t>>::uninitialized(points.size());
         parlay::parallel_for(0, points.size(), [&](size_t i) {
             adjlists[i] = adjlist_greedy(i);
-        }, 1);
+        }, 1);*/
+        auto adjlists = parlay::tabulate(points.size(), [&](size_t i) {
+            return adjlist_greedy(i);
+        });
         return adjlists;
     }
 };

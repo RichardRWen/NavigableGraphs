@@ -13,6 +13,7 @@ public:
 
     PointRange_t &points;
     pid_t *distances;
+
     SortedDistanceMatrix(PointRange_t &points) : points(points) {
         distances = (pid_t *) malloc(points.size() * points.size() * sizeof(pid_t));
 
@@ -29,6 +30,23 @@ public:
                       [](const pid_t &a, const pid_t &b) { return a.second < b.second; });
         }, 1);
     }
+
+    SortedDistanceMatrix(const SortedDistanceMatrix &) = delete;
+    SortedDistanceMatrix &operator=(const SortedDistanceMatrix &) = delete;
+
+    SortedDistanceMatrix(SortedDistanceMatrix &&other) noexcept
+        : points(other.points), distances(other.distances) {
+        other.distances = nullptr;
+    }
+    SortedDistanceMatrix &operator=(SortedDistanceMatrix &&other) noexcept {
+        if (this != &other) {
+            free(distances);
+            distances = other.distances;
+            other.distances = nullptr;
+        }
+        return *this;
+    }
+
     ~SortedDistanceMatrix() {
         free(distances);
     }

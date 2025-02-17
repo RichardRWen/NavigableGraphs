@@ -1,5 +1,6 @@
 set(TEST_FILES
     test_main.cpp
+    greedy_set_cover.cpp
 )
 
 foreach(TEST_FILE ${TEST_FILES})

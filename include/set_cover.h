@@ -33,20 +33,20 @@ public:
         }, 1);
     }
 
-    parlay::sequence<uint32_t> adjlist_greedy(uint32_t p) {
-        parlay::sequence<uint32_t> adjlist;
+    std::vector<uint32_t> adjlist_greedy(uint32_t p) {
+        std::vector<uint32_t> adjlist;
         std::vector<bool> covered(points.size(), false);
         size_t uncovered_count = points.size();
 
         // Compute, for each point q, the set of points r it helps cover
         // To do this, search for the p in the sorted list of distances from q
         // All points before p are covered by q
-        parlay::sequence<std::pair<uint32_t, uint32_t>> sets; // First element is size, second is index of first uncovered point in sorted_dists
+        std::vector<std::pair<uint32_t, uint32_t>> sets; // First element is size, second is index of first uncovered point in sorted_dists
         sets.reserve(points.size());
         for (int i = 0; i < points.size(); i++) {
             val_t *distances = dist_mat.distances.begin() + i * points.size();
             uint32_t *indices = sorted_dists.indices.begin() + i * points.size();
-            uint32_t set_boundary = std::lower_bound(indices, indices + points.size(), p, [&](uint32_t a, uint32_t b) {
+            uint32_t set_boundary = std::upper_bound(indices, indices + points.size(), p, [&](uint32_t a, uint32_t b) {
                 return distances[a] < distances[b];
             }) - indices;
             sets.push_back({set_boundary, set_boundary});
@@ -70,9 +70,9 @@ public:
                 if (!covered[indices[j]]) {
                     covered[indices[j]] = true;
                     uncovered_count--;
-                    for (auto &set : sets) {
-                        if (ranks[indices[j]] < set.second) {
-                            set.first--;
+                    for (size_t k = 0; k < points.size(); k++) {
+                        if (sorted_ranks[k * points.size() + indices[j]] < sets[k].second) {
+                            sets[k].first--;
                         }
                     }
                 }
@@ -82,8 +82,8 @@ public:
         return adjlist;
     }
 
-    parlay::sequence<parlay::sequence<uint32_t>> adjlists_greedy() {
-        auto adjlists = parlay::sequence<parlay::sequence<uint32_t>>::uninitialized(points.size());
+    parlay::sequence<std::vector<uint32_t>> adjlists_greedy() {
+        auto adjlists = parlay::sequence<std::vector<uint32_t>>::uninitialized(points.size());
         parlay::parallel_for(0, points.size(), [&](size_t i) {
             adjlists[i] = adjlist_greedy(i);
         }, 1);

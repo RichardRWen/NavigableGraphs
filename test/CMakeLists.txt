@@ -1,6 +1,7 @@
 set(TEST_FILES
     test_main.cpp
     greedy_set_cover.cpp
+    unbounded_prune.cpp
 )
 
 foreach(TEST_FILE ${TEST_FILES})

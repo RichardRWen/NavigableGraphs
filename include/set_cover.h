@@ -40,44 +40,51 @@ public:
 
         std::vector<uint32_t> adjlist;
         std::vector<bool> covered(points.size(), false);
-        size_t uncovered_count = points.size();
+        covered[v] = true;
+        size_t total_uncovered = points.size() - 1;
 
         // Compute, for each point v, the set of points u it helps cover
         // To do this, search for v in the sorted list of distances from u
         // All points before v are covered by u
-        std::vector<std::pair<uint32_t, uint32_t>> sets; // First element is size, second is index of first uncovered point in sorted_dists
-        sets.reserve(points.size());
-        for (int i = 0; i < points.size(); i++) {
-            val_t *distances = dist_mat.distances.begin() + i * points.size();
-            uint32_t *indices = sorted_dists.indices.begin() + i * points.size();
-            uint32_t set_boundary = std::upper_bound(indices, indices + points.size(), v, [&](uint32_t a, uint32_t b) {
+        std::vector<std::vector<uint32_t>> sets(points.size()); // First element is size, second is index of first uncovered point in sorted_dists
+        std::vector<uint32_t> set_boundaries;
+        set_boundaries.reserve(points.size());
+        for (uint32_t j = 0; j < points.size(); j++) {
+            val_t *distances = dist_mat.distances.begin() + j * points.size();
+            uint32_t *indices = sorted_dists.indices.begin() + j * points.size();
+            uint32_t set_boundary = std::lower_bound(indices, indices + points.size(), v, [&](uint32_t a, uint32_t b) {
                 return distances[a] < distances[b];
             }) - indices;
-            sets.push_back({set_boundary, set_boundary});
+            set_boundaries.push_back(set_boundary);
+            for (uint32_t i = 0; i < set_boundary; i++) {
+                sets[indices[i]].push_back(j);
+            }
+        }
+        std::vector<uint32_t> num_uncovered;
+        num_uncovered.reserve(points.size());
+        for (size_t i = 0; i < points.size(); i++) {
+            num_uncovered.push_back(sets[i].size());
         }
         
         // Compute a greedy set cover for a logn approximation
         // While there are uncovered points, pick the set with the most uncovered points
         // For each of its uncovered points, decrement the size of all sets that cover it
-        while (uncovered_count > 0) {
-            auto largest_set = std::max_element(sets.begin(), sets.end(), [](const auto &a, const auto &b) {
-                return a.first < b.first;
-            });
-            if (largest_set->first <= 0) {
+        while (total_uncovered > 0) {
+            auto best_set = std::max_element(num_uncovered.begin(), num_uncovered.end());
+            if (*best_set == 0) {
                 std::cerr << "Error: Unable to cover all points." << std::endl;
                 abort();
             }
-            adjlist.push_back(largest_set - sets.begin());
-            uint32_t *indices = sorted_dists.indices.begin() + (largest_set - sets.begin()) * points.size();
-            uint32_t *ranks = sorted_ranks.begin() + (largest_set - sets.begin()) * points.size();
-            for (size_t j = 0; j < largest_set->second; j++) {
-                if (!covered[indices[j]]) {
-                    covered[indices[j]] = true;
-                    uncovered_count--;
-                    for (size_t k = 0; k < points.size(); k++) {
-                        if (sorted_ranks[k * points.size() + indices[j]] < sets[k].second) {
-                            sets[k].first--;
-                        }
+            uint32_t set_index = best_set - num_uncovered.begin();
+            adjlist.push_back(set_index);
+            if (*best_set == total_uncovered) break;
+            total_uncovered -= *best_set;
+            for (uint32_t j : sets[set_index]) {
+                if (!covered[j]) {
+                    covered[j] = true;
+                    uint32_t *indices = sorted_dists.indices.begin() + j * points.size();
+                    for (uint32_t i = 0; i < set_boundaries[j]; i++) {
+                        num_uncovered[indices[i]]--;
                     }
                 }
             }

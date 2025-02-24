@@ -97,6 +97,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Avg distance comparisons: " << parlay::reduce(parlay::tabulate(queries.size(), [&](size_t i) {
         return results[i].second;
     })) / (double)queries.size() << std::endl;
+    std::cout << "Query time: " << query_time << " seconds" << std::endl;
     std::cout << "Avg QPS: " << queries.size() / query_time << std::endl;
 
     return 0;

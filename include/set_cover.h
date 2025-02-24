@@ -10,20 +10,18 @@
 
 #include <utils/point_range.h>
 
+#include "point_set.h"
 #include "distance_matrix.h"
 
 template <typename val_t>
 class SetCoverAdjlists {
 public:
-    using Point_t = parlayANN::Euclidian_Point<val_t>;
-    using PointRange_t = parlayANN::PointRange<Point_t>;
-
-    PointRange_t &points;
+    PointSet<val_t> &points;
     DistanceMatrix<val_t> dist_mat;
     SortedDistances sorted_dists;
     parlay::sequence<uint32_t> sorted_ranks;
 
-    SetCoverAdjlists(PointRange_t &points) : points(points), dist_mat(points), sorted_dists(dist_mat) {
+    SetCoverAdjlists(PointSet<val_t> &points) : points(points), dist_mat(points), sorted_dists(dist_mat) {
         sorted_ranks = parlay::sequence<uint32_t>::uninitialized(sorted_dists.indices.size());
         parlay::parallel_for(0, points.size(), [&](size_t i) {
             uint32_t *dists = sorted_dists.indices.begin() + i * points.size();

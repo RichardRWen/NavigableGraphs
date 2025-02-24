@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include <sys/mman.h>
+
 #include <parlay/sequence.h>
 #include <parlay/internal/get_time.h>
 
@@ -12,6 +14,7 @@
 #include <utils/parse_results.h>
 #include <utils/check_nn_recall.h>
 
+#include "point_set.h"
 #include "distance_matrix.h"
 #include "set_cover.h"
 
@@ -19,21 +22,23 @@
 
 int main(int argc, char* argv[]) {
     std::string test = "sift_10K";
+    size_t sample_size = -1ULL;
     if (argc > 1) {
         test = argv[1];
+    }
+    if (argc > 2) {
+        sample_size = std::stoul(argv[2]);
     }
 
     using index_t = uint32_t;
     using value_t = float;
-    using Point_t = parlayANN::Euclidian_Point<value_t>;
-    using PointRange_t = parlayANN::PointRange<Point_t>;
     using GroundTruth_t = parlayANN::groundTruth<index_t>;
     using Graph_t = parlayANN::Graph<index_t>;
 
     // Load the points
     std::cout << "Loading test: " << test << std::endl;
-    PointRange_t points(("/ssd1/richard/navgraphs/" + test + ".fbin").data());
-    PointRange_t queries(("/ssd1/richard/navgraphs/" + test + ".fbin").data());
+    PointSet points("/ssd1/richard/navgraphs/" + test + ".fbin", sample_size);
+    PointSet queries("/ssd1/richard/navgraphs/" + test + ".fbin", sample_size);
     GroundTruth_t groundtruth(("/ssd1/richard/navgraphs/" + test + ".gt").data());
 
     // Compute the adjacency lists
@@ -76,7 +81,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Testing recall" << std::endl;
     auto [avg_deg, max_deg] = parlayANN::graph_stats_(graph);
     parlayANN::Graph_ G_("GreedySetCover", "", graph.size(), avg_deg, max_deg, 0);
-    search_and_parse(G_, graph, points, queries, groundtruth, ("/ssd1/richard/navgraphs/logs/" + test + ".log").data(), 10, true);
+    search_and_parse(G_, graph, points, queries, groundtruth, ("/ssd1/richard/navgraphs/logs/" + test + ".log").data(), 1, true);
 
     return 0;
 }

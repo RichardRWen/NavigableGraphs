@@ -5,8 +5,7 @@
 
 #include <parlay/parallel.h>
 
-#include <utils/point_range.h>
-#include <utils/euclidian_point.h>
+#include "point_set.h"
 
 template <typename val_t>
 class DistanceMatrix {
@@ -14,7 +13,7 @@ public:
     size_t size;
     parlay::sequence<val_t> distances;
 
-    DistanceMatrix(parlayANN::PointRange<parlayANN::Euclidian_Point<val_t>> &points) : size(points.size()) {
+    DistanceMatrix(PointSet<val_t> &points) : size(points.size()) {
         distances = parlay::sequence<val_t>::uninitialized(points.size() * points.size());
 
         parlay::parallel_for(0, points.size(), [&](size_t i) {

@@ -17,6 +17,7 @@
 #include "point_set.h"
 #include "distance_matrix.h"
 #include "set_cover.h"
+#include "greedy_search.h"
 
 #define PARALLEL 1
 
@@ -79,9 +80,24 @@ int main(int argc, char* argv[]) {
 
     // Test QPS/recall
     std::cout << "Testing recall" << std::endl;
-    auto [avg_deg, max_deg] = parlayANN::graph_stats_(graph);
-    parlayANN::Graph_ G_("GreedySetCover", "", graph.size(), avg_deg, max_deg, 0);
-    search_and_parse(G_, graph, points, queries, groundtruth, ("/ssd1/richard/navgraphs/logs/" + test + ".log").data(), 1, true);
+    // auto [avg_deg, max_deg] = parlayANN::graph_stats_(graph);
+    // parlayANN::Graph_ G_("GreedySetCover", "", graph.size(), avg_deg, max_deg, 0);
+    // search_and_parse(G_, graph, points, queries, groundtruth, ("/ssd1/richard/navgraphs/logs/" + test + ".log").data(), 1, true);
+
+    timer.start();
+    auto results = parlay::tabulate(queries.size(), [&](size_t i) {
+        auto [neighbor, dist_comps] = greedy_search(adjlists, points, 0, i);
+        return std::make_pair(neighbor, dist_comps);
+    });
+    double query_time = timer.next_time();
+
+    std::cout << "Recall: " << parlay::reduce(parlay::tabulate(queries.size(), [&](size_t i) {
+        return results[i].first == i ? 1.0 : 0.0;
+    })) / (double)queries.size() << std::endl;
+    std::cout << "Avg distance comparisons: " << parlay::reduce(parlay::tabulate(queries.size(), [&](size_t i) {
+        return results[i].second;
+    })) / (double)queries.size() << std::endl;
+    std::cout << "Avg QPS: " << queries.size() / query_time << std::endl;
 
     return 0;
 }

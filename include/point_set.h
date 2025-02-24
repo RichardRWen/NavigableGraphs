@@ -8,15 +8,18 @@
 
 template <typename val_t = float>
 class PointSet {
+public:
     class Point {
     public:
+        using distanceType = val_t;
         parlay::sequence<val_t> coords;
+        size_t _id;
 
         Point() {}
 
         Point(size_t d) : coords(parlay::sequence<val_t>::uninitialized(d)) {}
 
-        Point(val_t *coords, size_t d) : coords(parlay::sequence<val_t>::uninitialized(d)) {
+        Point(size_t id, val_t *coords, size_t d) : _id(id), coords(parlay::sequence<val_t>::uninitialized(d)) {
             std::memcpy(this->coords.begin(), coords, d * sizeof(val_t));
         }
 
@@ -24,6 +27,10 @@ class PointSet {
 
         val_t operator[](size_t i) const {
             return coords[i];
+        }
+
+        size_t id() const {
+            return _id;
         }
 
         size_t size() const {
@@ -37,13 +44,24 @@ class PointSet {
             }
             return dist;
         }
+
+        bool same_as(const Point &other) const {
+            return id() == other.id();
+        }
+    
+        void prefetch() const {}
+    
+        static bool is_metric() { return true; }
     };
 
-    size_t _size;
-    size_t dims;
-    parlay::sequence<Point> points;
+    struct parameters {
+        int dims;
+        int num_bytes() const {return dims * sizeof(val_t);}
 
-public:
+        parameters() : dims(0) {}
+        parameters(int dims) : dims(dims) {}
+    };
+
     PointSet() : _size(0) {}
 
     PointSet(const PointSet &other) : _size(other._size), points(other.points) {}
@@ -59,12 +77,13 @@ public:
         reader.read((char *)(&n), sizeof(uint32_t));
         reader.read((char *)(&d), sizeof(uint32_t));
         _size = std::min<size_t>(n, head_size);
+        params = parameters(d);
 
         std::vector<val_t> data(n * d);
         reader.read((char *)data.data(), n * d * sizeof(val_t));
 
         points = parlay::tabulate(_size, [&](size_t i) {
-            return Point(data.data() + i * d, d);
+            return Point(i, data.data() + i * d, d);
         });
     }
 
@@ -78,8 +97,14 @@ public:
     size_t size() const {
         return _size;
     }
-    
+
     size_t dimension() const {
         return points[0].size();
     }
+
+    parameters params;
+private:
+    size_t _size;
+    size_t dims;
+    parlay::sequence<Point> points;
 };

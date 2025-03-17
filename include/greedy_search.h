@@ -8,8 +8,8 @@
 
 #include "point_set.h"
 
-template <typename val_t>
-std::pair<uint32_t, uint32_t> greedy_search(parlay::sequence<std::vector<uint32_t>> graph, PointSet<val_t> &points, uint32_t source, uint32_t query) {
+template <typename Graph, typename val_t>
+std::pair<uint32_t, uint32_t> greedy_search(Graph &graph, PointSet<val_t> &points, uint32_t source, uint32_t query) {
     parlay::sequence<bool> visited(points.size(), false);
     uint32_t current = source;
     val_t current_dist = points[source].distance(points[query]);

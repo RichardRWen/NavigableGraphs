@@ -2,6 +2,7 @@ set(TEST_FILES
     test_main.cpp
     greedy_set_cover.cpp
     unbounded_prune.cpp
+    load_and_search.cpp
 )
 
 foreach(TEST_FILE ${TEST_FILES})

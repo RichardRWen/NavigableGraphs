@@ -20,6 +20,7 @@
 
 struct arguments {
     std::string base_path;
+    std::string query_path;
     size_t sample_size;
 };
 
@@ -27,25 +28,31 @@ void parse_arguments(int argc, char *argv[], arguments &args) {
     struct option long_options[] = {
         {"help", no_argument, NULL, 'h'},
         {"base_path", required_argument, NULL, 'b'},
+        {"query_path", required_argument, NULL, 'q'},
         {"sample_size", required_argument, NULL, 's'},
         {NULL, 0, NULL, 0}
     };
 
     args.base_path = "/ssd1/richard/navgraphs/sift_10K.fbin";
+    args.query_path = "/ssd1/richard/navgraphs/sift_10K.fbin";
     args.sample_size = -1ULL;
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "hb:s:", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "hb:q:s:", long_options, NULL)) != -1) {
         switch (opt) {
             case 'h':
                 std::cout << "Usage: ./prune_neighborhood [options]" << std::endl;
                 std::cout << "Options:" << std::endl;
                 std::cout << "  -h, --help                     Show this help message" << std::endl;
                 std::cout << "  -b, --base_path <path>         Path to the base dataset" << std::endl;
+                std::cout << "  -q, --query_path <path>        Path to the query dataset" << std::endl;
                 std::cout << "  -s, --sample_size <size>       Number of points to sample from the dataset" << std::endl;
                 exit(EXIT_SUCCESS);
             case 'b':
                 args.base_path = std::string(optarg);
+                break;
+            case 'q':
+                args.query_path = std::string(optarg);
                 break;
             case 's':
                 args.sample_size = std::stoull(optarg);
@@ -67,6 +74,7 @@ int main(int argc, char *argv[]) {
     using PointRangeType = parlayANN::PointRange<PointType>;
 
     PointSet points(args.base_path.data(), args.sample_size);
+    PointSet queries(args.query_path.data());
 
     size_t progress = 0, max_progress = points.size();
     std::mutex progress_lock;
@@ -127,9 +135,8 @@ int main(int argc, char *argv[]) {
     });
     double query_time = timer.next_time();
 
-    std::cout << "Recall: " << parlay::reduce(parlay::tabulate(points.size(), [&](size_t i) {
-        return results[i].first == i ? 1.0 : 0.0;
-    })) / (double)points.size() << std::endl;
+    // Compute recall
+    
     std::cout << "Avg distance comparisons: " << parlay::reduce(parlay::tabulate(points.size(), [&](size_t i) {
         return results[i].second;
     })) / (double)points.size() << std::endl;

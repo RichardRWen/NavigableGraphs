@@ -50,7 +50,7 @@ public:
         std::vector<uint32_t> set_boundaries;
         set_boundaries.reserve(points.size());
         for (uint32_t j = 0; j < points.size(); j++) {
-            val_t *distances = dist_mat.distances.begin() + j * points.size();
+            val_t *distances = dist_mat.distances(j);
             uint32_t *indices = sorted_dists.indices.begin() + j * points.size();
             uint32_t set_boundary = std::lower_bound(indices, indices + points.size(), v, [&](uint32_t a, uint32_t b) {
                 return distances[a] < distances[b];

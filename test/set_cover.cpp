@@ -20,6 +20,7 @@
 #include "greedy_search.h"
 
 #define PARALLEL 1
+#define MODE 1
 
 int main(int argc, char* argv[]) {
     std::string test = "sift_10K";
@@ -48,14 +49,18 @@ int main(int argc, char* argv[]) {
     timer.start();
     SetCoverAdjlists<value_t> set_cover(points);
 
-    #if PARALLEL
-        auto adjlists = set_cover.adjlists_greedy();
-    #else
-        std::vector<std::vector<index_t>> adjlists;
-        for (size_t i = 0; i < points.size(); i++) {
-            std::cout << "Computing adjacency list for point " << i << std::endl;
-            adjlists.push_back(set_cover.adjlist_greedy(i));
-        }
+    #if MODE == 0 // Greedy
+        #if PARALLEL
+            auto adjlists = set_cover.adjlists_greedy();
+        #else
+            std::vector<std::vector<index_t>> adjlists;
+            for (size_t i = 0; i < points.size(); i++) {
+                std::cout << "Computing adjacency list for point " << i << std::endl;
+                adjlists.push_back(set_cover.adjlist_greedy(i));
+            }
+        #endif
+    #elif MODE == 1 // Sampling
+        auto adjlists = set_cover.adjlists_sampling();
     #endif
 
     std::cout << "Adjacency lists computed in " << timer.next_time() << " seconds" << std::endl;

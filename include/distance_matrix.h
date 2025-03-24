@@ -9,11 +9,11 @@
 
 template <typename val_t>
 class DistanceMatrix {
-    size_t size;
+    size_t _size;
 public:
     parlay::sequence<val_t> dists;
 
-    DistanceMatrix(PointSet<val_t> &points) : size(points.size()) {
+    DistanceMatrix(PointSet<val_t> &points) : _size(points.size()) {
         dists = parlay::sequence<val_t>::uninitialized(points.size() * points.size());
 
         parlay::parallel_for(0, points.size(), [&](size_t i) {
@@ -26,16 +26,16 @@ public:
         }, 1);
     }
 
-    size_t size() const {
-        return size;
+    inline size_t size() const {
+        return _size;
     }
 
-    val_t distances(size_t i) {
-        return dists[i * size + i];
+    inline val_t *distances(size_t i) {
+        return dists.begin() + i * _size;
     }
 
-    val_t distance(size_t i, size_t j) {
-        return dists[i * size + j];
+    inline val_t distance(size_t i, size_t j) {
+        return dists[i * _size + j];
     }
 };
 

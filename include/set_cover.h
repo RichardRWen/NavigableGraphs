@@ -172,9 +172,9 @@ public:
     }
 
     parlay::sequence<std::vector<uint32_t>> adjlists_sampling() {
-        parlay::random_generator gen();
+        parlay::random_generator gen;
         auto adjlists = parlay::tabulate(points.size(), [&](size_t i) {
-            auto r = gen[i];
+            parlay::random_generator r = gen[i];
             return adjlist_sampling(i, r);
         });
         return adjlists;

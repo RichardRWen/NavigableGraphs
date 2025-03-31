@@ -159,10 +159,11 @@ public:
             uint32_t set_index = best_set - votes.begin();
             adjlist.push_back(set_index);
 
-            for (uint32_t j : uncovered_points) {
-                if (closer_than(j, set_index, v)) {
-                    std::swap(uncovered_points[uncovered_indices[j]], uncovered_points.back());
-                    uncovered_indices[uncovered_points.back()] = uncovered_indices[j];
+            for (size_t j = uncovered_points.size() - 1; j < uncovered_points.size(); j--) {
+                uint32_t u = uncovered_points[j];
+                if (closer_than(u, set_index, v)) {
+                    uncovered_indices[uncovered_points.back()] = j;
+                    std::swap(uncovered_points[j], uncovered_points.back());
                     uncovered_points.pop_back();
                 }
             }

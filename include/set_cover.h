@@ -29,10 +29,16 @@ public:
     SetCoverAdjlists(PointSet<val_t> &points) : points(points), dist_mat(points), sorted_dists(dist_mat) {
         sorted_ranks = parlay::sequence<uint32_t>::uninitialized(sorted_dists.indices.size());
         parlay::parallel_for(0, points.size(), [&](size_t i) {
-            uint32_t *dists = sorted_dists.indices.begin() + i * points.size();
+            val_t *dists = dist_mat.distances(i);
+            uint32_t *inds = sorted_dists.indices.begin() + i * points.size();
             uint32_t *ranks = sorted_ranks.begin() + i * points.size();
             for (size_t j = 0; j < points.size(); j++) {
-                ranks[dists[j]] = j;
+                ranks[inds[j]] = j;
+            }
+            for (size_t j = 1; j < points.size(); j++) {
+                if (dists[inds[j]] == dists[inds[j - 1]]) {
+                    ranks[inds[j]] = ranks[inds[j - 1]];
+                }
             }
         }, 1);
     }
@@ -44,6 +50,7 @@ public:
 
     bool closer_than(uint32_t i, uint32_t j, uint32_t k) {
         // Return true if i is closer to j than to k
+        // return dist_mat.distance(i, j) < dist_mat.distance(i, k);
         return rank_of(i, j) < rank_of(i, k);
     }
 
@@ -122,14 +129,12 @@ public:
     std::vector<uint32_t> adjlist_sampling(uint32_t v, parlay::random_generator &gen) {
         std::vector<uint32_t> adjlist;
         std::vector<uint32_t> uncovered_points;
-        std::unordered_map<uint32_t, uint32_t> uncovered_indices;
+        std::vector<uint32_t> uncovered_indices;
         uncovered_points.reserve(points.size() - 1);
-        uncovered_indices.reserve(points.size() - 1);
+        uncovered_indices.reserve(points.size());
         for (uint32_t i = 0; i < points.size(); i++) {
-            if (i != v) {
-                uncovered_points.push_back(i);
-                uncovered_indices[i] = uncovered_points.size() - 1;
-            }
+            uncovered_indices.push_back(uncovered_points.size());
+            if (i != v) uncovered_points.push_back(i);
         }
 
         // Compute an approximate set cover with logn expected size
@@ -140,7 +145,7 @@ public:
         std::uniform_int_distribution<uint32_t> dist(0, std::numeric_limits<uint32_t>::max());
         while (!uncovered_points.empty()) {
             std::vector<uint32_t> votes(points.size(), 0);
-            for (size_t i = 0; i < 10; i++) {
+            for (size_t i = 0; i < 50; i++) {
                 uint32_t sample_index = dist(gen) % uncovered_points.size();
                 uint32_t sample_point = uncovered_points[sample_index];
                 uint32_t *indices = sorted_dists.indices.begin() + sample_point * points.size();
@@ -173,7 +178,7 @@ public:
     }
 
     parlay::sequence<std::vector<uint32_t>> adjlists_sampling() {
-        parlay::random_generator gen;
+        parlay::random_generator gen(0);
         auto adjlists = parlay::tabulate(points.size(), [&](size_t i) {
             parlay::random_generator r = gen[i];
             return adjlist_sampling(i, r);

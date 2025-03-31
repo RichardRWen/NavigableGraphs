@@ -19,7 +19,7 @@
 #include "set_cover.h"
 #include "greedy_search.h"
 
-#define PARALLEL 0
+#define PARALLEL 1
 #define MODE 1
 
 int main(int argc, char* argv[]) {
@@ -107,6 +107,17 @@ int main(int argc, char* argv[]) {
         return std::make_pair(neighbor, dist_comps);
     });
     double query_time = timer.next_time();
+
+    // for (size_t i = 0; i < results.size(); i++) {
+    //     if (results[i].first != i) {
+    //         std::cout << "Query " << i << " returned " << results[i].first << std::endl;
+    //         std::cout << "Adjacency list of " << results[i].first << ": ";
+    //         for (size_t j = 0; j < adjlists[results[i].first].size(); j++) {
+    //             std::cout << adjlists[results[i].first][j] << " ";
+    //         }
+    //         std::cout << std::endl;
+    //     }
+    // }
 
     std::cout << "Recall: " << parlay::reduce(parlay::tabulate(queries.size(), [&](size_t i) {
         return results[i].first == i ? 1.0 : 0.0;

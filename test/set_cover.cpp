@@ -19,7 +19,7 @@
 #include "set_cover.h"
 #include "greedy_search.h"
 
-#define PARALLEL 1
+#define PARALLEL 0
 #define MODE 1
 
 int main(int argc, char* argv[]) {
@@ -60,7 +60,19 @@ int main(int argc, char* argv[]) {
             }
         #endif
     #elif MODE == 1 // Sampling
-        auto adjlists = set_cover.adjlists_sampling();
+        #if PARALLEL
+            auto adjlists = set_cover.adjlists_sampling();
+        #else
+            parlay::random_generator gen(0);
+            std::vector<std::vector<index_t>> adjlists;
+            for (size_t i = 0; i < points.size(); i++) {
+                std::cout << "Computing adjacency list for point " << i << std::endl;
+                auto r = gen[i];
+                adjlists.push_back(set_cover.adjlist_sampling(i, r));
+            }
+        #endif
+    #else
+        #error "Invalid mode"
     #endif
 
     std::cout << "Adjacency lists computed in " << timer.next_time() << " seconds" << std::endl;

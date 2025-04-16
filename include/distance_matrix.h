@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <algorithm>
 
+#include <parlay/sequence.h>
 #include <parlay/parallel.h>
 
 #include "point_set.h"
@@ -10,18 +11,19 @@
 template <typename val_t>
 class DistanceMatrix {
     size_t _size;
-public:
     parlay::sequence<val_t> dists;
 
-    DistanceMatrix(PointSet<val_t> &points) : _size(points.size()) {
-        dists = parlay::sequence<val_t>::uninitialized(points.size() * points.size());
+public:
+    template <typename Points>
+    DistanceMatrix(Points &points) : _size(points.size()) {
+        dists = parlay::sequence<val_t>::uninitialized(_size * _size);
 
-        parlay::parallel_for(0, points.size(), [&](size_t i) {
-            dists[i * points.size() + i] = 0;
-            for (size_t j = i + 1; j < points.size(); j++) {
+        parlay::parallel_for(0, _size, [&](size_t i) {
+            dists[i * _size + i] = 0;
+            for (size_t j = i + 1; j < _size; j++) {
                 val_t dist = points[i].distance(points[j]);
-                dists[i * points.size() + j] = dist;
-                dists[j * points.size() + i] = dist;
+                dists[i * _size + j] = dist;
+                dists[j * _size + i] = dist;
             }
         }, 1);
     }
@@ -30,32 +32,61 @@ public:
         return _size;
     }
 
-    inline val_t *distances(size_t i) {
+    inline val_t *operator[](size_t i) {
         return dists.begin() + i * _size;
-    }
-
-    inline val_t distance(size_t i, size_t j) {
-        return dists[i * _size + j];
     }
 };
 
-class SortedDistances {
-public:
+class PermutationMatrix {
+    size_t _size;
     parlay::sequence<uint32_t> indices;
 
+public:
     template <typename val_t>
-    SortedDistances(DistanceMatrix<val_t> &dist_mat) {
-        indices = parlay::sequence<uint32_t>::uninitialized(dist_mat.size() * dist_mat.size());
-        parlay::parallel_for(0, dist_mat.size(), [&](size_t i) {
-            for (size_t j = 0; j < dist_mat.size(); j++) {
-                indices[i * dist_mat.size() + j] = j;
+    PermutationMatrix(DistanceMatrix<val_t> &dist_mat) : _size(dist_mat.size()) {
+        indices = parlay::sequence<uint32_t>::uninitialized(_size * _size);
+        parlay::parallel_for(0, _size, [&](size_t i) {
+            for (size_t j = 0; j < _size; j++) {
+                indices[i * _size + j] = j;
             }
         }, 1);
-        parlay::parallel_for(0, dist_mat.size(), [&](size_t i) {
-            val_t *distances = dist_mat.distances(i);
-            std::sort(indices.begin() + i * dist_mat.size(), indices.begin() + (i + 1) * dist_mat.size(), [&](uint32_t a, uint32_t b) {
+        parlay::parallel_for(0, _size, [&](size_t i) {
+            val_t *distances = dist_mat[i];
+            std::sort(indices.begin() + i * _size, indices.begin() + (i + 1) * _size, [&](uint32_t a, uint32_t b) {
                 return distances[a] < distances[b];
             });
         }, 1);
+    }
+
+    inline size_t size() const {
+        return _size;
+    }
+
+    inline uint32_t *operator[](size_t i) {
+        return indices.begin() + i * _size;
+    }
+};
+
+class RankMatrix {
+    size_t _size;
+    parlay::sequence<uint32_t> ranks;
+
+public:
+    RankMatrix(PermutationMatrix &perm_mat) : _size(perm_mat.size()) {
+        ranks = parlay::sequence<uint32_t>::uninitialized(_size * _size);
+        parlay::parallel_for(0, _size, [&](size_t i) {
+            uint32_t *indices = perm_mat[i];
+            for (size_t j = 0; j < _size; j++) {
+                ranks[i * _size + indices[j]] = j;
+            }
+        }, 1);
+    }
+
+    inline size_t size() const {
+        return _size;
+    }
+
+    inline uint32_t *operator[](size_t i) {
+        return ranks.begin() + i * _size;
     }
 };

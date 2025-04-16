@@ -22,30 +22,15 @@ template <typename val_t>
 class SetCoverAdjlists {
 public:
     PointSet<val_t> &points;
-    DistanceMatrix<val_t> dist_mat;
-    SortedDistances sorted_dists;
-    parlay::sequence<uint32_t> sorted_ranks;
+    DistanceMatrix<val_t> distances;
+    PermutationMatrix permutations;
+    RankMatrix ranks;
 
-    SetCoverAdjlists(PointSet<val_t> &points) : points(points), dist_mat(points), sorted_dists(dist_mat) {
-        sorted_ranks = parlay::sequence<uint32_t>::uninitialized(sorted_dists.indices.size());
-        parlay::parallel_for(0, points.size(), [&](size_t i) {
-            val_t *dists = dist_mat.distances(i);
-            uint32_t *inds = sorted_dists.indices.begin() + i * points.size();
-            uint32_t *ranks = sorted_ranks.begin() + i * points.size();
-            for (size_t j = 0; j < points.size(); j++) {
-                ranks[inds[j]] = j;
-            }
-            for (size_t j = 1; j < points.size(); j++) {
-                if (dists[inds[j]] == dists[inds[j - 1]]) {
-                    ranks[inds[j]] = ranks[inds[j - 1]];
-                }
-            }
-        }, 1);
-    }
+    SetCoverAdjlists(PointSet<val_t> &points) : points(points), distances(points), permutations(distances), ranks(permutations) {}
 
     uint32_t rank_of(uint32_t i, uint32_t j) {
         // Return the rank of point j in the sorted list of distances from point i
-        return sorted_ranks[i * points.size() + j];
+        return ranks[i * points.size() + j];
     }
 
     bool closer_than(uint32_t i, uint32_t j, uint32_t k) {
@@ -72,14 +57,14 @@ public:
         std::vector<uint32_t> set_boundaries;
         set_boundaries.reserve(points.size());
         for (uint32_t j = 0; j < points.size(); j++) {
-            val_t *distances = dist_mat.distances(j);
-            uint32_t *indices = sorted_dists.indices.begin() + j * points.size();
-            uint32_t set_boundary = std::lower_bound(indices, indices + points.size(), v, [&](uint32_t a, uint32_t b) {
-                return distances[a] < distances[b];
-            }) - indices;
+            val_t *dists = distances[j];
+            uint32_t *perm = permutations[j];
+            uint32_t set_boundary = std::lower_bound(perm, perm + points.size(), v, [&](uint32_t a, uint32_t b) {
+                return dists[a] < dists[b];
+            }) - perm;
             set_boundaries.push_back(set_boundary);
             for (uint32_t i = 0; i < set_boundary; i++) {
-                sets[indices[i]].push_back(j);
+                sets[perm[i]].push_back(j);
             }
         }
         std::vector<uint32_t> num_uncovered;
@@ -104,7 +89,7 @@ public:
             for (uint32_t j : sets[set_index]) {
                 if (!covered[j]) {
                     covered[j] = true;
-                    uint32_t *indices = sorted_dists.indices.begin() + j * points.size();
+                    uint32_t *indices = permutations[j];
                     for (uint32_t i = 0; i < set_boundaries[j]; i++) {
                         num_uncovered[indices[i]]--;
                     }
@@ -148,10 +133,10 @@ public:
             for (size_t i = 0; i < 50; i++) {
                 uint32_t sample_index = dist(gen) % uncovered_points.size();
                 uint32_t sample_point = uncovered_points[sample_index];
-                uint32_t *indices = sorted_dists.indices.begin() + sample_point * points.size();
+                uint32_t *perm = permutations.indices.begin() + sample_point * points.size();
                 uint32_t set_boundary = rank_of(sample_point, v);
                 for (uint32_t j = 0; j < set_boundary; j++) {
-                    uint32_t set_index = indices[j];
+                    uint32_t set_index = perm[j];
                     votes[set_index]++;
                 }
             }

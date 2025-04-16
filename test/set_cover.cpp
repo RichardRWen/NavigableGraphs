@@ -20,7 +20,7 @@
 #include "greedy_search.h"
 
 #define PARALLEL 1
-#define MODE 1
+#define MODE 0
 
 int main(int argc, char* argv[]) {
     std::string test = "sift_10K";

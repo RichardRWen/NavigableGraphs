@@ -8,22 +8,22 @@
 
 #include "point_set.h"
 
-template <typename val_t>
+template <typename value_t>
 class DistanceMatrix {
     size_t _size;
-    parlay::sequence<val_t> dists;
+    parlay::sequence<value_t> dists;
 
 public:
     template <typename Points>
     DistanceMatrix(Points &points) : _size(points.size()) {
-        dists = parlay::sequence<val_t>::uninitialized(_size * _size);
-
+        dists = parlay::sequence<value_t>::uninitialized(_size * _size);
+        auto &matrix = *this;
         parlay::parallel_for(0, _size, [&](size_t i) {
-            dists[i * _size + i] = 0;
+            matrix[i][i] = 0;
             for (size_t j = i + 1; j < _size; j++) {
-                val_t dist = points[i].distance(points[j]);
-                dists[i * _size + j] = dist;
-                dists[j * _size + i] = dist;
+                value_t dist = points[i].distance(points[j]);
+                matrix[i][j] = dist;
+                matrix[j][i] = dist;
             }
         }, 1);
     }
@@ -32,30 +32,32 @@ public:
         return _size;
     }
 
-    inline val_t *operator[](size_t i) {
+    inline value_t *operator[](size_t i) {
         return dists.begin() + i * _size;
     }
-    inline const val_t *operator[](size_t i) const {
+    inline const value_t *operator[](size_t i) const {
         return dists.begin() + i * _size;
     }
 };
 
+template <typename index_t = uint32_t>
 class PermutationMatrix {
     size_t _size;
-    parlay::sequence<uint32_t> indices;
+    parlay::sequence<index_t> indices;
 
 public:
-    template <typename val_t>
-    PermutationMatrix(DistanceMatrix<val_t> &dist_mat) : _size(dist_mat.size()) {
+    template <typename value_t>
+    PermutationMatrix(DistanceMatrix<value_t> &dist_mat) : _size(dist_mat.size()) {
         indices = parlay::sequence<uint32_t>::uninitialized(_size * _size);
+        auto &matrix = *this;
         parlay::parallel_for(0, _size, [&](size_t i) {
             for (size_t j = 0; j < _size; j++) {
-                indices[i * _size + j] = j;
+                matrix[i][j] = j;
             }
         }, 1);
         parlay::parallel_for(0, _size, [&](size_t i) {
-            val_t *distances = dist_mat[i];
-            std::sort(indices.begin() + i * _size, indices.begin() + (i + 1) * _size, [&](uint32_t a, uint32_t b) {
+            value_t *distances = dist_mat[i];
+            std::sort(matrix[i], matrix[i + 1], [&](uint32_t a, uint32_t b) {
                 return distances[a] < distances[b];
             });
         }, 1);
@@ -65,25 +67,33 @@ public:
         return _size;
     }
 
-    inline uint32_t *operator[](size_t i) {
+    inline index_t *operator[](size_t i) {
         return indices.begin() + i * _size;
     }
-    inline const uint32_t *operator[](size_t i) const {
+    inline const index_t *operator[](size_t i) const {
         return indices.begin() + i * _size;
     }
 };
 
+template <typename index_t = uint32_t>
 class RankMatrix {
     size_t _size;
-    parlay::sequence<uint32_t> ranks;
+    parlay::sequence<index_t> ranks;
 
 public:
-    RankMatrix(PermutationMatrix &perm_mat) : _size(perm_mat.size()) {
+    template <typename value_t>
+    RankMatrix(DistanceMatrix<value_t> &dist_mat, PermutationMatrix<index_t> &perm_mat) : _size(dist_mat.size()) {
         ranks = parlay::sequence<uint32_t>::uninitialized(_size * _size);
+        auto &matrix = *this;
         parlay::parallel_for(0, _size, [&](size_t i) {
             uint32_t *indices = perm_mat[i];
             for (size_t j = 0; j < _size; j++) {
-                ranks[i * _size + indices[j]] = j;
+                matrix[i][indices[j]] = j;
+            }
+            for (size_t j = 1; j < _size; j++) {
+                if (dist_mat[i][j] == dist_mat[i][j - 1]) {
+                    matrix[i][j] = matrix[i][j - 1];
+                }
             }
         }, 1);
     }
@@ -92,10 +102,10 @@ public:
         return _size;
     }
 
-    inline uint32_t *operator[](size_t i) {
+    inline index_t *operator[](size_t i) {
         return ranks.begin() + i * _size;
     }
-    inline const uint32_t *operator[](size_t i) const {
+    inline const index_t *operator[](size_t i) const {
         return ranks.begin() + i * _size;
     }
 };

@@ -18,15 +18,15 @@
 #include "point_set.h"
 #include "distance_matrix.h"
 
-template <typename val_t>
+template <typename value_t>
 class SetCoverAdjlists {
 public:
-    PointSet<val_t> &points;
-    DistanceMatrix<val_t> distances;
-    PermutationMatrix permutations;
-    RankMatrix ranks;
+    PointSet<value_t> &points;
+    DistanceMatrix<value_t> distances;
+    PermutationMatrix<uint32_t> permutations;
+    RankMatrix<uint32_t> ranks;
 
-    SetCoverAdjlists(PointSet<val_t> &points) : points(points), distances(points), permutations(distances), ranks(permutations) {}
+    SetCoverAdjlists(PointSet<value_t> &points) : points(points), distances(points), permutations(distances), ranks(distances, permutations) {}
 
     uint32_t rank_of(uint32_t i, uint32_t j) {
         // Return the rank of point j in the sorted list of distances from point i
@@ -57,7 +57,7 @@ public:
         std::vector<uint32_t> set_boundaries;
         set_boundaries.reserve(points.size());
         for (uint32_t j = 0; j < points.size(); j++) {
-            val_t *dists = distances[j];
+            value_t *dists = distances[j];
             uint32_t *perm = permutations[j];
             uint32_t set_boundary = std::lower_bound(perm, perm + points.size(), v, [&](uint32_t a, uint32_t b) {
                 return dists[a] < dists[b];

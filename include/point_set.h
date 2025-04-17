@@ -6,26 +6,26 @@
 
 #include <parlay/sequence.h>
 
-template <typename val_t = float>
+template <typename value_t = float>
 class PointSet {
 public:
     class Point {
     public:
-        using distanceType = val_t;
-        parlay::sequence<val_t> coords;
+        using distanceType = value_t;
+        parlay::sequence<value_t> coords;
         size_t _id;
 
         Point() {}
 
-        Point(size_t d) : coords(parlay::sequence<val_t>::uninitialized(d)) {}
+        Point(size_t d) : coords(parlay::sequence<value_t>::uninitialized(d)) {}
 
-        Point(size_t id, val_t *coords, size_t d) : _id(id), coords(parlay::sequence<val_t>::uninitialized(d)) {
-            std::memcpy(this->coords.begin(), coords, d * sizeof(val_t));
+        Point(size_t id, value_t *coords, size_t d) : _id(id), coords(parlay::sequence<value_t>::uninitialized(d)) {
+            std::memcpy(this->coords.begin(), coords, d * sizeof(value_t));
         }
 
-        Point(parlay::sequence<val_t> &&coords) : coords(coords) {}
+        Point(parlay::sequence<value_t> &&coords) : coords(coords) {}
 
-        val_t operator[](size_t i) const {
+        value_t operator[](size_t i) const {
             return coords[i];
         }
 
@@ -37,8 +37,8 @@ public:
             return coords.size();
         }
 
-        val_t distance(const Point &other) const {
-            val_t dist = 0;
+        value_t distance(const Point &other) const {
+            value_t dist = 0;
             for (size_t i = 0; i < coords.size(); i++) {
                 dist += (coords[i] - other.coords[i]) * (coords[i] - other.coords[i]);
             }
@@ -56,7 +56,7 @@ public:
 
     struct parameters {
         int dims;
-        int num_bytes() const {return dims * sizeof(val_t);}
+        int num_bytes() const {return dims * sizeof(value_t);}
 
         parameters() : dims(0) {}
         parameters(int dims) : dims(dims) {}
@@ -79,8 +79,8 @@ public:
         _size = std::min<size_t>(n, head_size);
         params = parameters(d);
 
-        std::vector<val_t> data(n * d);
-        reader.read((char *)data.data(), n * d * sizeof(val_t));
+        std::vector<value_t> data(n * d);
+        reader.read((char *)data.data(), n * d * sizeof(value_t));
 
         points = parlay::tabulate(_size, [&](size_t i) {
             return Point(i, data.data() + i * d, d);

@@ -1,6 +1,6 @@
 set(TEST_FILES
     test_main.cpp
-    set_cover.cpp
+    minimum_navigable_graph.cpp
     unbounded_prune.cpp
     load_and_search.cpp
 )

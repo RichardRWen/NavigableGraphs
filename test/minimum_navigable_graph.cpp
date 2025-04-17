@@ -18,11 +18,10 @@
 #include "distance_matrix.h"
 #include "set_cover.h"
 #include "greedy_search.h"
-
 #include "minimum_navigable_graph.h"
 
 #define PARALLEL 1
-#define MODE 0
+#define MODE 2
 
 int main(int argc, char* argv[]) {
     std::string test = "sift_10K";
@@ -46,12 +45,12 @@ int main(int argc, char* argv[]) {
     GroundTruth_t groundtruth(("/ssd1/richard/navgraphs/" + test + ".gt").data());
 
     // Compute the adjacency lists
-    std::cout << "Computing adjacency lists using greedy set cover" << std::endl;
+    std::cout << "Computing approximate minimum navigable graph" << std::endl;
     parlay::internal::timer timer;
     timer.start();
-    SetCoverAdjlists<value_t> set_cover(points);
 
     #if MODE == 0 // Greedy
+        SetCoverAdjlists<value_t> set_cover(points);
         #if PARALLEL
             auto adjlists = set_cover.adjlists_greedy();
         #else
@@ -62,6 +61,7 @@ int main(int argc, char* argv[]) {
             }
         #endif
     #elif MODE == 1 // Sampling
+        SetCoverAdjlists<value_t> set_cover(points);
         #if PARALLEL
             auto adjlists = set_cover.adjlists_sampling();
         #else
@@ -73,6 +73,8 @@ int main(int argc, char* argv[]) {
                 adjlists.push_back(set_cover.adjlist_sampling(i, r));
             }
         #endif
+    #elif MODE == 2 // Quadratic
+        auto adjlists = MNG::minimum_navigable_graph<index_t, value_t>(points);
     #else
         #error "Invalid mode"
     #endif

@@ -20,14 +20,14 @@
 
 namespace MNG {
     template <typename index_t>
-    inline bool covers(size_t i, size_t s, size_t p, RankMatrix<index_t> &ranks) {
+    inline bool covers(index_t i, index_t s, index_t p, const RankMatrix<index_t> &ranks) {
         // Check if set s covers point p in set cover instance i
         return ranks[p][s] < ranks[p][i];
     }
     template <typename index_t>
-    inline auto sets_of(size_t i, size_t p, PermutationMatrix<index_t> &permutations, RankMatrix<index_t> &ranks) {
+    inline auto sets_of(index_t i, index_t p, const PermutationMatrix<index_t> &permutations, const RankMatrix<index_t> &ranks) {
         // Get the sets that cover point p in set cover instance i
-        return parlay::make_slice(permutations[p].begin(), permutations[p].begin() + ranks[p][i]);
+        return parlay::make_slice(permutations[p], permutations[p] + ranks[p][i]);
     }
 
     template <typename index_t>
@@ -59,7 +59,7 @@ namespace MNG {
                     // If the set has enough votes, add it to the adjacency list and remove its voters
                     adjlist.push_back(s);
                     for (; j >= 0; j--) {
-                        sets[j].erase(p);
+                        voters[j].erase(p);
                     }
                     for (index_t v : voters[s]) {
                         auto v_sets = sets_of(i, v, permutations, ranks);
@@ -114,16 +114,16 @@ namespace MNG {
 
         // Compute adjacency lists using set cover
         std::atomic<size_t> tot_deg = 0;
-        size_t block_size = num_points / 2 / parlay::internal::num_workers();
+        size_t block_size = num_points / 2 / parlay::num_workers();
         size_t num_blocks = (num_points + block_size - 1) / block_size;
         parlay::parallel_for(0, num_blocks, [&](size_t b) {
             size_t start = b * block_size;
             size_t end = std::min(start + block_size, num_points);
-            for (size_t i = start; i < end; i++) {
+            for (index_t i = start; i < end; i++) {
                 if (tot_deg > est_tot_deg) break;
                 auto rnd = gen[i];
                 std::shuffle(uncovered[i].begin(), uncovered[i].end(), rnd);
-                minimum_adjacency_list(num_points, i, uncovered[i], adjlists[i], permutations, ranks);
+                minimum_adjacency_list<index_t>(num_points, i, uncovered[i], adjlists[i], permutations, ranks);
                 tot_deg += adjlists[i].size();
             }
         }, 1);
@@ -136,8 +136,8 @@ namespace MNG {
     std::vector<std::vector<index_t>> minimum_navigable_graph(PointSet &points) {
         // Compute the distance, permutation, and rank matrices
         DistanceMatrix<value_t> distances(points);
-        PermutationMatrix permutations(distances);
-        RankMatrix ranks(permutations);
+        PermutationMatrix<index_t> permutations(distances);
+        RankMatrix<index_t> ranks(distances, permutations);
 
         // Exponential search for the optimal number of edges
         size_t avg_deg = points.size();

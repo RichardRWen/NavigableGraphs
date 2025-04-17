@@ -19,6 +19,8 @@
 #include "set_cover.h"
 #include "greedy_search.h"
 
+#include "minimum_navigable_graph.h"
+
 #define PARALLEL 1
 #define MODE 0
 

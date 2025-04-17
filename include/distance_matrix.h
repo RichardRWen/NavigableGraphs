@@ -35,6 +35,9 @@ public:
     inline val_t *operator[](size_t i) {
         return dists.begin() + i * _size;
     }
+    inline const val_t *operator[](size_t i) const {
+        return dists.begin() + i * _size;
+    }
 };
 
 class PermutationMatrix {
@@ -65,6 +68,9 @@ public:
     inline uint32_t *operator[](size_t i) {
         return indices.begin() + i * _size;
     }
+    inline const uint32_t *operator[](size_t i) const {
+        return indices.begin() + i * _size;
+    }
 };
 
 class RankMatrix {
@@ -87,6 +93,9 @@ public:
     }
 
     inline uint32_t *operator[](size_t i) {
+        return ranks.begin() + i * _size;
+    }
+    inline const uint32_t *operator[](size_t i) const {
         return ranks.begin() + i * _size;
     }
 };

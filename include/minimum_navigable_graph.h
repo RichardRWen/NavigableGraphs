@@ -32,7 +32,50 @@ namespace MNG {
 
     template <typename index_t>
     void minimum_adjacency_list(size_t n, index_t i, std::vector<index_t> &uncovered, std::vector<index_t> &adjlist, const PermutationMatrix<index_t> &permutations, const RankMatrix<index_t> &ranks) {
-        // TODO: implement
+        size_t logn = std::ceil(std::log2(n));
+        std::vector<std::unordered_set<index_t>> voters(n);
+        for (size_t j = 0; j < voters.size(); j++) {
+            voters[j].reserve(logn);
+        }
+
+        while (!uncovered.empty()) {
+            // Find an uncovered point
+            index_t p = uncovered.back();
+            uncovered.pop_back();
+            bool is_covered = false;
+            for (auto s : adjlist) {
+                if (covers(i, s, p, ranks)) {
+                    is_covered = true;
+                    break;
+                }
+            }
+            if (is_covered) continue;
+
+            // Vote for the sets that cover p
+            auto sets = sets_of(i, p, permutations, ranks);
+            for (size_t j = 0; j < sets.size(); j++) {
+                index_t s = sets[j];
+                if (voters[s].size() >= logn - 1) {
+                    // If the set has enough votes, add it to the adjacency list and remove its voters
+                    adjlist.push_back(s);
+                    for (; j >= 0; j--) {
+                        sets[j].erase(p);
+                    }
+                    for (index_t v : voters[s]) {
+                        auto v_sets = sets_of(i, v, permutations, ranks);
+                        for (size_t k = 0; k < v_sets.size(); k++) {
+                            index_t v_s = v_sets[k];
+                            if (v_s != s) {
+                                voters[v_s].erase(v);
+                            }
+                        }
+                    }
+                    voters[s].clear();
+                    break;
+                }
+                else voters[s].insert(p);
+            }
+        }
     }
 
     template <typename index_t>
@@ -71,7 +114,7 @@ namespace MNG {
 
         // Compute adjacency lists using set cover
         std::atomic<size_t> tot_deg = 0;
-        size_t block_size = 10;
+        size_t block_size = num_points / 2 / parlay::internal::num_workers();
         size_t num_blocks = (num_points + block_size - 1) / block_size;
         parlay::parallel_for(0, num_blocks, [&](size_t b) {
             size_t start = b * block_size;

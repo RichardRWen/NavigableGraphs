@@ -15,7 +15,7 @@
 #include <utils/check_nn_recall.h>
 
 #include "point_set.h"
-#include "distance_matrix.h"
+#include "mng_utils.h"
 #include "set_cover.h"
 #include "greedy_search.h"
 #include "minimum_navigable_graph.h"

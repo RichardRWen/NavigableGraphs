@@ -17,7 +17,7 @@
 #include <parlay/random.h>
 
 #include "point_set.h"
-#include "distance_matrix.h"
+#include "mng_utils.h"
 
 namespace MNG {
     template <typename index_t>

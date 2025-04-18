@@ -16,7 +16,7 @@
 #include <utils/point_range.h>
 
 #include "point_set.h"
-#include "distance_matrix.h"
+#include "mng_utils.h"
 
 template <typename value_t>
 class SetCoverAdjlists {

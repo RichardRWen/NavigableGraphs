@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <cstdint>
 #include <cstdlib>
 #include <cmath>
@@ -58,13 +59,12 @@ namespace MNG {
                 if (voters[s].size() >= logn - 1) {
                     // If the set has enough votes, add it to the adjacency list and remove its voters
                     adjlist.push_back(s);
-                    for (; j >= 0; j--) {
-                        voters[j].erase(p);
+                    for (; j > 0; j--) {
+                        voters[sets[j - 1]].erase(p);
                     }
                     for (index_t v : voters[s]) {
                         auto v_sets = sets_of(i, v, permutations, ranks);
-                        for (size_t k = 0; k < v_sets.size(); k++) {
-                            index_t v_s = v_sets[k];
+                        for (index_t v_s : v_sets) {
                             if (v_s != s) {
                                 voters[v_s].erase(v);
                             }
@@ -86,17 +86,17 @@ namespace MNG {
 
         // Add random edges to each adjacency list
         parlay::random_generator gen(0);
-        std::uniform_int_distribution<index_t> dis(0, num_points - 1);
+        std::uniform_int_distribution<index_t> dis(0, num_points - 2);
         parlay::parallel_for(0, num_points, [&](size_t i) {
             auto rnd = gen[i];
             std::unordered_set<index_t> chosen;
             chosen.reserve(est_avg_deg);
-            for (int i = 0; i < est_avg_deg; i++) {
-                index_t j = dis(rnd);
-                if (j == i) continue;
-                if (chosen.find(j) != chosen.end()) continue;
-                chosen.insert(j);
-                adjlists[i].push_back(j);
+            for (int j = 0; j < est_avg_deg; j++) {
+                index_t k = dis(rnd);
+                if (k >= i) k++;
+                if (chosen.find(k) != chosen.end()) continue;
+                chosen.insert(k);
+                adjlists[i].push_back(k);
             }
         }, 1);
 
@@ -115,8 +115,10 @@ namespace MNG {
         // Compute adjacency lists using set cover
         std::atomic<size_t> tot_deg = 0;
         size_t block_size = num_points / 2 / parlay::num_workers();
+        if (block_size < 1) block_size = 1;
         size_t num_blocks = (num_points + block_size - 1) / block_size;
-        parlay::parallel_for(0, num_blocks, [&](size_t b) {
+        // parlay::parallel_for(0, num_blocks, [&](size_t b) {
+        for (size_t b = 0; b < num_blocks; b++) {
             size_t start = b * block_size;
             size_t end = std::min(start + block_size, num_points);
             for (index_t i = start; i < end; i++) {
@@ -126,7 +128,8 @@ namespace MNG {
                 minimum_adjacency_list<index_t>(num_points, i, uncovered[i], adjlists[i], permutations, ranks);
                 tot_deg += adjlists[i].size();
             }
-        }, 1);
+        // }, 1);
+        }
 
         if (tot_deg > est_tot_deg) return {false, {}};
         return {true, adjlists};
@@ -140,7 +143,7 @@ namespace MNG {
         RankMatrix<index_t> ranks(distances, permutations);
 
         // Exponential search for the optimal number of edges
-        size_t avg_deg = points.size();
+        size_t avg_deg = 1;
         while (true) {
             auto [success, adjlists] = minimum_navigable_graph_opt<index_t>(points.size(), avg_deg, permutations, ranks);
             if (success) return adjlists;

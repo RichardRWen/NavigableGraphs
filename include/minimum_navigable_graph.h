@@ -33,12 +33,15 @@ namespace MNG {
 
     template <typename index_t>
     void minimum_adjacency_list(size_t n, index_t i, std::vector<index_t> &uncovered, std::vector<index_t> &adjlist, const PermutationMatrix<index_t> &permutations, const RankMatrix<index_t> &ranks) {
+        // Initialize voter data structures
         size_t logn = std::ceil(std::log2(n));
         std::vector<std::unordered_set<index_t>> voters(n);
         for (size_t j = 0; j < voters.size(); j++) {
             voters[j].reserve(logn);
         }
+        UnorderedQueue<index_t> all_voters;
 
+        // Sample uncovered points to obtain high-contribution sets
         while (!uncovered.empty()) {
             // Find an uncovered point
             index_t p = uncovered.back();
@@ -53,12 +56,14 @@ namespace MNG {
             if (is_covered) continue;
 
             // Vote for the sets that cover p
+            all_voters.push_back(p);
             auto sets = sets_of(i, p, permutations, ranks);
             for (size_t j = 0; j < sets.size(); j++) {
                 index_t s = sets[j];
                 if (voters[s].size() >= logn - 1) {
                     // If the set has enough votes, add it to the adjacency list and remove its voters
                     adjlist.push_back(s);
+                    all_voters.pop_back();
                     for (; j > 0; j--) {
                         voters[sets[j - 1]].erase(p);
                     }
@@ -69,11 +74,21 @@ namespace MNG {
                                 voters[v_s].erase(v);
                             }
                         }
+                        all_voters.erase(v);
                     }
                     voters[s].clear();
                     break;
                 }
                 else voters[s].insert(p);
+            }
+        }
+
+        // Clean up dangling voters
+        while (!all_voters.empty()) {
+            index_t s = all_voters.pop_back();
+            adjlist.push_back(s);
+            for (auto v : voters[s]) {
+                all_voters.erase(v);
             }
         }
     }
@@ -117,8 +132,7 @@ namespace MNG {
         size_t block_size = num_points / 2 / parlay::num_workers();
         if (block_size < 1) block_size = 1;
         size_t num_blocks = (num_points + block_size - 1) / block_size;
-        // parlay::parallel_for(0, num_blocks, [&](size_t b) {
-        for (size_t b = 0; b < num_blocks; b++) {
+        parlay::parallel_for(0, num_blocks, [&](size_t b) {
             size_t start = b * block_size;
             size_t end = std::min(start + block_size, num_points);
             for (index_t i = start; i < end; i++) {
@@ -128,8 +142,7 @@ namespace MNG {
                 minimum_adjacency_list<index_t>(num_points, i, uncovered[i], adjlists[i], permutations, ranks);
                 tot_deg += adjlists[i].size();
             }
-        // }, 1);
-        }
+        }, 1);
 
         if (tot_deg > est_tot_deg) return {false, {}};
         return {true, adjlists};

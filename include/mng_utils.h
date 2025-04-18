@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <algorithm>
+#include <vector>
+#include <unordered_map>
 
 #include <parlay/sequence.h>
 #include <parlay/parallel.h>
@@ -107,5 +109,64 @@ public:
     }
     inline const index_t *operator[](size_t i) const {
         return ranks.begin() + i * _size;
+    }
+};
+
+template <typename value_t = uint32_t>
+class UnorderedQueue {
+    std::vector<value_t> queue;
+    std::unordered_map<value_t, size_t> indices;
+
+public:
+    UnorderedQueue() : queue(), indices() {}
+
+    void reserve(size_t size) {
+        queue.reserve(size);
+        indices.reserve(size);
+    }
+
+    size_t size() const {
+        return queue.size();
+    }
+    bool empty() const {
+        return queue.empty();
+    }
+
+    void push_back(value_t value) {
+        if (indices.find(value) == indices.end()) {
+            queue.push_back(value);
+            indices[value] = queue.size() - 1;
+        }
+    }
+    value_t pop_back() {
+        if (!queue.empty()) {
+            value_t value = queue.back();
+            queue.pop_back();
+            indices.erase(value);
+            return value;
+        }
+        return -1;
+    }
+    value_t back() const {
+        if (!queue.empty()) {
+            return queue.back();
+        }
+        return -1;
+    }
+
+    bool contains(value_t value) const {
+        return indices.find(value) != indices.end();
+    }
+    void erase(value_t value) {
+        auto it = indices.find(value);
+        if (it != indices.end()) {
+            size_t index = it->second;
+            queue[index] = queue.back();
+            queue.pop_back();
+            if (index < queue.size()) {
+                indices[queue[index]] = index;
+            }
+            indices.erase(it);
+        }
     }
 };
